@@ -1,14 +1,7 @@
-
-# with open('results.json', 'w') as f:
-#     json.dump(data["results"], f, indent=4)
-        
-
-
-### 
-
 import logging
 import requests
 import json
+import duckdb
 
 # import hydra
 # https://hydra.cc/docs/intro/
@@ -17,7 +10,7 @@ import json
 # https://dlthub.com/docs/intro
 # https://dlthub.com/docs/dlt-ecosystem/destinations/duckdb
 
-# import duckdb
+
 # https://duckdb.org/docs/installation/?version=latest&environment=python
 
 class dv3f():
@@ -74,13 +67,18 @@ class dv3f():
         ### voir comment retourner les résultats dans l'object
     def __repr__(self):
         return json.dumps(self.data)
-    ## def load_data(self):
-    ## 
+    def load_data(self):
+        self.logger.info(f"Starting load task")
+        with duckdb.connect("dv3f.db") as con:
+            con.sql("CREATE TABLE test_raw (i INTEGER)")
+            con.insert("INSERT INTO test_raw VALUES (12)")
+            con_obj = con.table("test_raw").show()
+            self.logger.info(f"Table :{con_obj}")
 
 
 new_dv = dv3f()
-new_dv.get_data(scope="dep", coddep=59)
-
+# new_dv.get_data(scope="dep", coddep=59)
+new_dv.load_data()
 print(new_dv)
 
 # Switch coddep&codreg into code or raise error if scope=dep and correg
