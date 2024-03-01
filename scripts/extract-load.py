@@ -74,6 +74,8 @@ class dv3f():
         ### voir comment retourner les résultats dans l'object
     def __repr__(self):
         return json.dumps(self.data)
+    ## def load_data(self):
+    ## 
 
 
 new_dv = dv3f()
