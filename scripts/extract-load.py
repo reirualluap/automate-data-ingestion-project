@@ -66,19 +66,22 @@ class dv3f():
         # return data["results"]
         ### voir comment retourner les résultats dans l'object
     def __repr__(self):
-        return json.dumps(self.data)
+        if self.data: 
+            return json.dumps(self.data)
     def load_data(self):
         self.logger.info(f"Starting load task")
+        table_name = "test_raw"
         with duckdb.connect("dv3f.db") as con:
-            con.sql("CREATE TABLE test_raw (i INTEGER)")
-            con.insert("INSERT INTO test_raw VALUES (12)")
-            con_obj = con.table("test_raw").show()
+            con.sql(f"CREATE TABLE IF NOT EXISTS {table_name} (i INTEGER)")
+            self.logger.info(f"{table_name}")
+            con.sql(f"INSERT INTO {table_name} VALUES (12)")
+            con_obj = con.table(f"{table_name}").show()
             self.logger.info(f"Table :{con_obj}")
 
 
 new_dv = dv3f()
 # new_dv.get_data(scope="dep", coddep=59)
 new_dv.load_data()
-print(new_dv)
+# print(new_dv)
 
 # Switch coddep&codreg into code or raise error if scope=dep and correg
