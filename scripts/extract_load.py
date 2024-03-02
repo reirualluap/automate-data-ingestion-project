@@ -10,8 +10,6 @@ from omegaconf import OmegaConf
 # import dlt
 # https://dlthub.com/docs/intro
 # https://dlthub.com/docs/dlt-ecosystem/destinations/duckdb
-
-
 # https://duckdb.org/docs/installation/?version=latest&environment=python
 
 with initialize(version_base=None, config_path="config", job_name="pipeline"):
@@ -25,7 +23,7 @@ class dv3f():
         This method configures the logging system with basic settings, including log level,
         output file, and format. It initializes a logger object for use within the class.
         """
-        logging.basicConfig(level=logging.INFO, filename='dv3f.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level=logging.INFO, filename='log/dv3f.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
         self.logger = logging.getLogger(__name__)
     
     def get_data(self, annee=None, scope=None,coddep=None, codreg=None, **kwargs):
@@ -99,15 +97,13 @@ class dv3f():
 
     def load_data(self):
         self.logger.info(f"Starting load task")
-        table_name = cfg.db.table_name
-        db_name = cfg.db.db_name
-        with duckdb.connect(f"data/{db_name}.db") as con:
+        with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
             # con.sql("RESET LOCAL home_directory")
             con.sql("RESET LOCAL extension_directory")
-            con.sql(f"CREATE TABLE IF NOT EXISTS {table_name} (i INTEGER)")
-            self.logger.info(f"{table_name}")
-            con.sql(f"INSERT INTO {table_name} VALUES (12)")
-            con_obj = con.table(f"{table_name}").show()
+            con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} (i INTEGER)")
+            self.logger.info(f"{cfg.db.table_name}")
+            con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
+            con_obj = con.table(f"{cfg.db.table_name}").show()
             self.logger.info(f"Table :{con_obj}")
 
 

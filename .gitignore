@@ -3,3 +3,6 @@ ingestion-project-venv
 
 ## LOGS
 *.log
+
+## CACHE
+*.pyc
