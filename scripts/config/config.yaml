@@ -1,2 +1,3 @@
 db:
+  db_name: dv3f
   table_name: test_raw

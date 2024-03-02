@@ -100,7 +100,10 @@ class dv3f():
     def load_data(self):
         self.logger.info(f"Starting load task")
         table_name = cfg.db.table_name
-        with duckdb.connect("data.dv3f.db") as con:
+        db_name = cfg.db.db_name
+        with duckdb.connect(f"data/{db_name}.db") as con:
+            # con.sql("RESET LOCAL home_directory")
+            con.sql("RESET LOCAL extension_directory")
             con.sql(f"CREATE TABLE IF NOT EXISTS {table_name} (i INTEGER)")
             self.logger.info(f"{table_name}")
             con.sql(f"INSERT INTO {table_name} VALUES (12)")
