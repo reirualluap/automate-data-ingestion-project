@@ -2,8 +2,9 @@ import logging
 import requests
 import json
 import duckdb
+from hydra import compose, initialize
+from omegaconf import OmegaConf
 
-# import hydra
 # https://hydra.cc/docs/intro/
 
 # import dlt
@@ -13,13 +14,42 @@ import duckdb
 
 # https://duckdb.org/docs/installation/?version=latest&environment=python
 
+with initialize(version_base=None, config_path="config", job_name="pipeline"):
+    cfg = compose(config_name="hydra.yaml")
+
 class dv3f():
     def __init__(self):
+        """
+        Initializes the object and sets up logging configuration.
+        
+        This method configures the logging system with basic settings, including log level,
+        output file, and format. It initializes a logger object for use within the class.
+        """
         logging.basicConfig(level=logging.INFO, filename='dv3f.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
         self.logger = logging.getLogger(__name__)
-
+    
     def get_data(self, annee=None, scope=None,coddep=None, codreg=None, **kwargs):
+        """
+        Retrieves data from an API endpoint based on specified parameters.
         
+        Args:
+            annee (int, optional): The year for which data is to be retrieved.
+            scope (str, optional): The scope of the data, either 'region' or 'departement'.
+            coddep (str, optional): The department code.
+            codreg (str, optional): The region code.
+            **kwargs: Additional keyword arguments for filtering and pagination.
+
+        Raises:
+            ValueError: If an invalid scope value is provided.
+
+        Returns:
+            dict: The retrieved data from the API endpoint.
+
+        This method constructs the API endpoint URL based on the provided scope and codes,
+        sends a GET request to the endpoint with optional query parameters, and processes
+        the response. It logs relevant information such as the endpoint URL, response status,
+        and the number of results received.
+        """
         self.kwargs = kwargs
         self.scope = scope
         self.annee = annee
@@ -48,10 +78,8 @@ class dv3f():
 
         if response.status_code == 200:
             nb_results = len(response.json()['results'])
-            # self.logger.info(f"nb_results : {nb_results}")
             if nb_results == 0:
                 raise BaseException("La requête a abouti mais le contenu est vide")
-            
             else: 
                 data = response.json()
                 if nb_results == 1:
@@ -60,18 +88,19 @@ class dv3f():
                     print(f"{nb_results} résultats ont été trouvés")
 
                 self.data = data["results"]
-
         else:
             print("La requête a échoué avec le code de statut:", response.status_code)
-        # return data["results"]
-        ### voir comment retourner les résultats dans l'object
+
     def __repr__(self):
         if self.data: 
             return json.dumps(self.data)
+        else:
+            print("No data yet, use get_data method first")
+
     def load_data(self):
         self.logger.info(f"Starting load task")
-        table_name = "test_raw"
-        with duckdb.connect("dv3f.db") as con:
+        table_name = cfg.db.table_name
+        with duckdb.connect("data.dv3f.db") as con:
             con.sql(f"CREATE TABLE IF NOT EXISTS {table_name} (i INTEGER)")
             self.logger.info(f"{table_name}")
             con.sql(f"INSERT INTO {table_name} VALUES (12)")
@@ -79,9 +108,15 @@ class dv3f():
             self.logger.info(f"Table :{con_obj}")
 
 
-new_dv = dv3f()
+# def pipeline():
+
+
+# if __name__ == "main":
+#     pipeline()
+
+# new_dv = dv3f()
 # new_dv.get_data(scope="dep", coddep=59)
-new_dv.load_data()
+# new_dv.load_data()
 # print(new_dv)
 
 # Switch coddep&codreg into code or raise error if scope=dep and correg
