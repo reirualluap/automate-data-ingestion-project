@@ -108,12 +108,26 @@ class dv3f():
         # self.data
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
-            con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} AS SELECT * FROM 'results.json';")
-            self.logger.info(f"Table :{cfg.db.table_name}")
+            insertion_table = self.data
+            # -- con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} AS SELECT * FROM insertion_table;")
+            # -- self.logger.info(f"Table :{cfg.db.table_name}")
             # con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
-            con_obj = con.table(f"{cfg.db.table_name}").show()
+            # try:
+            #     con_obj = con.(f"{cfg.db.schema_name}")
+            # except Exception as e:
+            #     print(e)
+            con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
+            try:
+                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.table_name}")
+                # .show()
+            except Exception as e:
+                print(e,f"Creating new table as {cfg.db.schema_name}.{cfg.db.table_name}")
+                con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.table_name} AS SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table;")
             # self.logger.info(f"Insert :{con_obj}")
+                
+            ### ADD A WAY TO INSERT ONLY NEW ROWS TO ENSURE IDEMPOTENCE
 
+            con.sql(f"INSERT INTO {cfg.db.schema_name}.{cfg.db.table_name} BY NAME SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table")
 ## LOAD IN A RAW with expiration date (on scheduled)
 ## ADD A STAGED with UUID GENERATION BASED on all fields
 ## ADD A CLEAN WITH UNIQUE UUID
@@ -131,3 +145,6 @@ class dv3f():
 # print(new_dv)
 
 # Switch coddep&codreg into code or raise error if scope=dep and correg
+            
+
+            
