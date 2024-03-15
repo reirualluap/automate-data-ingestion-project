@@ -6,3 +6,4 @@ ingestion-project-venv
 
 ## CACHE
 *.pyc
+scripts/__pycache__/

@@ -97,15 +97,20 @@ class dv3f():
 
     def load_data(self):
         self.logger.info(f"Starting load task")
-        with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
-            # con.sql("RESET LOCAL home_directory")
-            con.sql("RESET LOCAL extension_directory")
-            con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} (i INTEGER)")
-            self.logger.info(f"{cfg.db.table_name}")
-            con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
-            con_obj = con.table(f"{cfg.db.table_name}").show()
-            self.logger.info(f"Table :{con_obj}")
 
+        # self.data
+
+        with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
+            con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} AS SELECT * FROM 'results.json';")
+            self.logger.info(f"Table :{cfg.db.table_name}")
+            # con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
+            con_obj = con.table(f"{cfg.db.table_name}").show()
+            # self.logger.info(f"Insert :{con_obj}")
+
+## LOAD IN A RAW with expiration date (on scheduled)
+## ADD A STAGED with UUID GENERATION BASED on all fields
+## ADD A CLEAN WITH UNIQUE UUID
+## next : switch from ELT to E(t)LT with UUID generate with pd
 
 # def pipeline():
 
