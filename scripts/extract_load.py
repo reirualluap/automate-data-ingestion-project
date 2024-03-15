@@ -1,6 +1,7 @@
 import logging
 import requests
 import json
+import pandas as pd
 import duckdb
 from hydra import compose, initialize
 from omegaconf import OmegaConf
@@ -85,16 +86,22 @@ class dv3f():
                 else:
                     print(f"{nb_results} résultats ont été trouvés")
 
-                self.data = data["results"]
+                self.data = pd.json_normalize(data["results"])
         else:
             print("La requête a échoué avec le code de statut:", response.status_code)
 
     def __repr__(self):
-        if self.data: 
-            return json.dumps(self.data)
+        if 'data' in dir(self):
+           return self.data
         else:
-            print("No data yet, use get_data method first")
-
+            raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
+            
+    def __str__(self):
+        if 'data' in dir(self):
+           return str(self.data.head(5))
+        else:
+            raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
+        
     def load_data(self):
         self.logger.info(f"Starting load task")
 
