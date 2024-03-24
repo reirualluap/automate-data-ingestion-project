@@ -2,3 +2,7 @@ db:
   db_name: dv3f
   schema_name: dev
   table_name: test_insert_raw
+
+log:
+  path: log 
+  name: dv3f.log 

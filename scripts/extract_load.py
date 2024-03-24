@@ -1,6 +1,6 @@
-import logging
+# import logging
 import requests
-import json
+from loguru import logger
 import pandas as pd
 import duckdb
 from hydra import compose, initialize
@@ -16,6 +16,8 @@ from omegaconf import OmegaConf
 with initialize(version_base=None, config_path="config", job_name="pipeline"):
     cfg = compose(config_name="hydra.yaml")
 
+logger.add(f"{cfg.log.path}/{cfg.log.name}")
+
 class dv3f():
     def __init__(self):
         """
@@ -24,8 +26,6 @@ class dv3f():
         This method configures the logging system with basic settings, including log level,
         output file, and format. It initializes a logger object for use within the class.
         """
-        logging.basicConfig(level=logging.INFO, filename='log/dv3f.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
-        self.logger = logging.getLogger(__name__)
     
     def get_data(self, annee=None, scope=None,coddep=None, codreg=None, **kwargs):
         """
@@ -62,7 +62,7 @@ class dv3f():
             self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/departements/annuel/{self.coddep}/"
         else:
             raise ValueError("Invalid scope value. Valid values are 'region' or 'departement'.")
-        self.logger.info(f"Annee : {self.annee}, Scope: {self.scope}, Kwargs: {kwargs}")
+        logger.info(f"Annee : {self.annee}, Scope: {self.scope}, Kwargs: {kwargs}")
 
         self.params = {
             'annee': self.annee,
@@ -73,7 +73,7 @@ class dv3f():
 
         self.params = {key: value for key, value in self.params.items() if value}
         response = requests.get(self.api_endpoint, params=self.params)
-        self.logger.info(f"api_endpoint : {response.url} , Response : {response.status_code}, Response_nb : {response.json()['count']}")
+        logger.info(f"api_endpoint : {response.url} , Response : {response.status_code}, Response_nb : {response.json()['count']}")
 
         if response.status_code == 200:
             nb_results = len(response.json()['results'])
@@ -103,14 +103,13 @@ class dv3f():
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
         
     def load_data(self):
-        self.logger.info(f"Starting load task")
-
-        # self.data
+        logger.info(f"Starting load task")
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
             insertion_table = self.data
+            logger.info(f"Using {cfg.db.schema_name}.{cfg.db.table_name} to insert data")
             # -- con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} AS SELECT * FROM insertion_table;")
-            # -- self.logger.info(f"Table :{cfg.db.table_name}")
+            # -- logger.info(f"Table :{cfg.db.table_name}")
             # con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
             # try:
             #     con_obj = con.(f"{cfg.db.schema_name}")
@@ -119,15 +118,18 @@ class dv3f():
             con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
             try:
                 con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.table_name}")
-                # .show()
+                logger.success(f"Table {cfg.db.schema_name}.{cfg.db.table_name} exists")
             except Exception as e:
-                print(e,f"Creating new table as {cfg.db.schema_name}.{cfg.db.table_name}")
+                logger.warning(e,f"Creating new table as {cfg.db.schema_name}.{cfg.db.table_name}")
                 con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.table_name} AS SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table;")
-            # self.logger.info(f"Insert :{con_obj}")
+            
                 
             ### ADD A WAY TO INSERT ONLY NEW ROWS TO ENSURE IDEMPOTENCE
-
+            logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.table_name}")
             con.sql(f"INSERT INTO {cfg.db.schema_name}.{cfg.db.table_name} BY NAME SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table")
+        
+        logger.info(f"Load task ended")
+
 ## LOAD IN A RAW with expiration date (on scheduled)
 ## ADD A STAGED with UUID GENERATION BASED on all fields
 ## ADD A CLEAN WITH UNIQUE UUID

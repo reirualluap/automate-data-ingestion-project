@@ -7,3 +7,7 @@ ingestion-project-venv
 ## CACHE
 *.pyc
 /scripts/__pycache__
+
+## VSCode Files
+*.vscode
+/.vscode
