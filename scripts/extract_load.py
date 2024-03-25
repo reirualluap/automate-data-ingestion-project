@@ -138,6 +138,12 @@ class dv3f():
         self.data = df_pivoted
         logger.info("Transform task ended")
 
+    def test(self):
+        # print(f"{cfg.schema.columns.keys()}")
+        # print(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.schema.primary_keys)}));""")
+        pass
+
+    ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
     def load_data(self):
         logger.info("Starting load task")
 
@@ -152,28 +158,22 @@ class dv3f():
             except Exception as e:
                 logger.warning(e)
                 logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging}")
-                con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} AS SELECT * FROM insertion_table;")
-                # con.sql(f"ALTER TABLE {cfg.db.schema_name}.{cfg.db.tables.staging} (PRIMARY KEY(uuid));")
+                con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.db.tables.staging.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.db.tables.staging.schema.primary_keys)}));""")
                 logger.success(f"{cfg.db.schema_name}.{cfg.db.tables.staging} created")
                 
-            ### ADD A WAY TO INSERT ONLY NEW ROWS TO ENSURE IDEMPOTENCE
-            ### Steps
-            ### 1. Use a schema declaration to define a PK as duckdb doesn't allow it
-            ### 2. Insert or replace into each time
-            ### OR
-            ### Find a way to add a PK constraint
-            ### Optionnal : Used a temp to make transformation in SQL then load in a persitent      
             ### Use Ruff as a linter
                 
-            logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging}")
-            con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging} BY NAME SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table")
-
-        logger.info(f"Load task ended")
-
-## LOAD IN A RAW with expiration date (on scheduled)
-## ADD A STAGED with UUID GENERATION BASED on all fields
-## ADD A CLEAN WITH UNIQUE UUID
-## next : switch from ELT to E(t)LT with UUID generate with pd
+            try:
+                logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging}")
+                con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging} BY NAME SELECT * FROM insertion_table;")
+                logger.info(f"Load task ended")
+            except Exception as e:
+                logger.error(e)
+            
+            try:
+                con.sql("SELECT estimated_size,column_count,index_count FROM duckdb_tables();").show()
+            except Exception as e:
+                logger.error(e)
 
 # def pipeline():
 

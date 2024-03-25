@@ -11,3 +11,6 @@ ingestion-project-venv
 ## VSCode Files
 *.vscode
 /.vscode
+
+## tempfiles
+*.wal

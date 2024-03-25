@@ -1,8 +1,64 @@
+log:
+  path: log 
+  name: dv3f.log
+
 db:
   db_name: dv3f
   schema_name: dev
-  table_name: test_insert_raw
+  tables:
+      raw: test_raw
+      staging: test_staging
+        schema:
+          primary_keys: 
+            - uid
+          columns : 
+            uid:
+              type: string
+            annee:
+              type: string
+              nullable: true
+              maxLength: 4
+            dep:
+              type: string
+              nullable: true
+            libdep:
+              type: string
+              nullable: true
+            cod: 
+              type: string
+              nullable: true
+            nbtrans:
+              type: int64
+              max: 9223372036854776000
+              min: -9223372036854776000
+              nullable: true
+            valeurfonc_sum:
+              type: double
+              nullable: true
+            valeurfonc_q25:
+              type: double
+              nullable: true
+            valeurfonc_median:
+              type: double
+              nullable: true
+            valeurfonc_q75:
+              type: double
+              nullable: true
+            pxm2_q25:
+              type: double
+              nullable: true
+            pxm2_median:
+              type: double
+              nullable: true
+            pxm2_q75:
+              type: double
+              nullable: true
+            sbati_sum:
+              type: double
+              nullable: true
+            sbati_median:
+              type: double
+              nullable: true
 
-log:
-  path: log 
-  name: dv3f.log 
+
+
