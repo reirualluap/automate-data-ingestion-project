@@ -5,6 +5,7 @@ import pandas as pd
 import duckdb
 from hydra import compose, initialize
 from omegaconf import OmegaConf
+import hashlib
 
 # https://hydra.cc/docs/intro/
 
@@ -101,33 +102,72 @@ class dv3f():
            return str(self.data.head(5))
         else:
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
+    
+    def transform_data(self):
+        logger.info("Starting transform task")
         
+        m = hashlib.sha256()
+        df = (self.data)
+
+        # Liste des colonnes à garder inchangées
+        id_vars = ['annee', 'dep', 'libdep']
+
+        # Réorganiser les données en utilisant melt et extraire le suffixe
+        df_melted = df.melt(id_vars=id_vars, var_name='cod_full', value_name='valeur')
+
+        # Extraire le suffixe de la colonne cod_full
+        df_melted[['cod_full','cod']] = df_melted['cod_full'].str.rsplit('_', n=1, expand=True)
+        df_melted['cod'] = df_melted.apply(lambda row: row['cod'].replace('cod',''), axis=1)
+
+        # Pivoter la colonne cod_full
+        df_pivoted = df_melted.pivot_table(index=id_vars + ['cod'], columns='cod_full', values='valeur', aggfunc='first').reset_index()
+
+        # Ajout d'une clé de déduplication (UID)
+        df_pivoted['uid'] = df_pivoted.apply(
+            lambda row: hashlib.sha256(
+                str(row['annee']).encode('utf-8') + 
+                str(row['dep']).encode('utf-8') + 
+                str(row['cod']).encode('utf-8')
+            ).hexdigest(), 
+            axis=1
+        )
+
+        # Renommer les colonnes si nécessaire
+        df_pivoted.columns.name = None
+
+        self.data = df_pivoted
+        logger.info("Transform task ended")
+
     def load_data(self):
-        logger.info(f"Starting load task")
+        logger.info("Starting load task")
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
             insertion_table = self.data
-            logger.info(f"Using {cfg.db.schema_name}.{cfg.db.table_name} to insert data")
-            # -- con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.table_name} AS SELECT * FROM insertion_table;")
-            # -- logger.info(f"Table :{cfg.db.table_name}")
-            # con.sql(f"INSERT INTO {cfg.db.table_name} VALUES (12)")
-            # try:
-            #     con_obj = con.(f"{cfg.db.schema_name}")
-            # except Exception as e:
-            #     print(e)
+            logger.info(f"Using {cfg.db.schema_name}.{cfg.db.tables.staging} to insert data")
             con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
+
             try:
-                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.table_name}")
-                logger.success(f"Table {cfg.db.schema_name}.{cfg.db.table_name} exists")
+                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.tables.staging}")
+                logger.success(f"Table {cfg.db.schema_name}.{cfg.db.tables.staging} exists")
             except Exception as e:
-                logger.warning(e,f"Creating new table as {cfg.db.schema_name}.{cfg.db.table_name}")
-                con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.table_name} AS SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table;")
-            
+                logger.warning(e)
+                logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging}")
+                con.sql(f"CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} AS SELECT * FROM insertion_table;")
+                # con.sql(f"ALTER TABLE {cfg.db.schema_name}.{cfg.db.tables.staging} (PRIMARY KEY(uuid));")
+                logger.success(f"{cfg.db.schema_name}.{cfg.db.tables.staging} created")
                 
             ### ADD A WAY TO INSERT ONLY NEW ROWS TO ENSURE IDEMPOTENCE
-            logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.table_name}")
-            con.sql(f"INSERT INTO {cfg.db.schema_name}.{cfg.db.table_name} BY NAME SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table")
-        
+            ### Steps
+            ### 1. Use a schema declaration to define a PK as duckdb doesn't allow it
+            ### 2. Insert or replace into each time
+            ### OR
+            ### Find a way to add a PK constraint
+            ### Optionnal : Used a temp to make transformation in SQL then load in a persitent      
+            ### Use Ruff as a linter
+                
+            logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging}")
+            con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging} BY NAME SELECT *,sha256(concat(annee,dep,libdep)) as uuid FROM insertion_table")
+
         logger.info(f"Load task ended")
 
 ## LOAD IN A RAW with expiration date (on scheduled)
