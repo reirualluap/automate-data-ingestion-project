@@ -7,13 +7,6 @@ from hydra import compose, initialize
 from omegaconf import OmegaConf
 import hashlib
 
-# https://hydra.cc/docs/intro/
-
-# import dlt
-# https://dlthub.com/docs/intro
-# https://dlthub.com/docs/dlt-ecosystem/destinations/duckdb
-# https://duckdb.org/docs/installation/?version=latest&environment=python
-
 with initialize(version_base=None, config_path="config", job_name="pipeline"):
     cfg = compose(config_name="hydra.yaml")
 
@@ -28,7 +21,7 @@ class dv3f():
         output file, and format. It initializes a logger object for use within the class.
         """
     
-    def get_data(self, annee=None, scope=None,coddep=None, codreg=None, **kwargs):
+    def get_data(self, annee=None, scope=None,code=None, codreg=None, **kwargs):
         """
         Retrieves data from an API endpoint based on specified parameters.
         
@@ -53,17 +46,19 @@ class dv3f():
         self.kwargs = kwargs
         self.scope = scope
         self.annee = annee
-        self.coddep = coddep
-        self.codreg = codreg
+        self.code = code
         self.api_endpoint = None
  
+        logger.info(f"Starting get task")
+
         if self.scope in ["region","reg"]:
-            self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/regions/annuel/{self.codreg}/"
+            self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/regions/annuel/{self.code}/"
         elif self.scope in ["departement","dep"]:
-            self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/departements/annuel/{self.coddep}/"
+            self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/departements/annuel/{self.code}/"
         else:
             raise ValueError("Invalid scope value. Valid values are 'region' or 'departement'.")
-        logger.info(f"Annee : {self.annee}, Scope: {self.scope}, Kwargs: {kwargs}")
+        
+        logger.debug(f"Annee : {self.annee}, Scope: {self.scope}, Kwargs: {kwargs}")
 
         self.params = {
             'annee': self.annee,
@@ -73,13 +68,16 @@ class dv3f():
         }
 
         self.params = {key: value for key, value in self.params.items() if value}
+         
         response = requests.get(self.api_endpoint, params=self.params)
-        logger.info(f"api_endpoint : {response.url} , Response : {response.status_code}, Response_nb : {response.json()['count']}")
-
+        
         if response.status_code == 200:
             nb_results = len(response.json()['results'])
+            logger.debug(f"api_endpoint : {response.url}, Response_nb : {response.json()['count']}")
             if nb_results == 0:
-                raise BaseException("La requête a abouti mais le contenu est vide")
+                e = "La requête a abouti mais le contenu est vide"
+                logger.error(e)
+                raise BaseException(e)
             else: 
                 data = response.json()
                 if nb_results == 1:
@@ -89,7 +87,12 @@ class dv3f():
 
                 self.data = pd.json_normalize(data["results"])
         else:
-            print("La requête a échoué avec le code de statut:", response.status_code)
+            e = (f"La requête a échoué avec le code de statut: {response.status_code}")
+            logger.error(e)
+            raise BaseException(e)
+
+        logger.success("Get task ended")
+
 
     def __repr__(self):
         if 'data' in dir(self):
@@ -104,6 +107,18 @@ class dv3f():
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
     
     def transform_data(self):
+        """
+        Transforms the provided DataFrame using a series of operations including melting, pivoting, and adding a unique identifier (UID).
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        This method logs the start of the transformation task, performs the transformation operations,
+        and logs the completion of the task. 
+        """
         logger.info("Starting transform task")
         
         m = hashlib.sha256()
@@ -136,7 +151,7 @@ class dv3f():
         df_pivoted.columns.name = None
 
         self.data = df_pivoted
-        logger.info("Transform task ended")
+        logger.success("Transform task ended")
 
     def test(self):
         # print(f"{cfg.schema.columns.keys()}")
@@ -149,42 +164,36 @@ class dv3f():
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
             insertion_table = self.data
-            logger.info(f"Using {cfg.db.schema_name}.{cfg.db.tables.staging} to insert data")
+            logger.debug(f"Using {cfg.db.schema_name}.{cfg.db.tables.staging.name} to insert data")
             con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
 
             try:
-                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.tables.staging}")
-                logger.success(f"Table {cfg.db.schema_name}.{cfg.db.tables.staging} exists")
+                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.tables.staging.name}")
+                logger.info(f"Table {cfg.db.schema_name}.{cfg.db.tables.staging.name} exists")
             except Exception as e:
                 logger.warning(e)
-                logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging}")
-                con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.db.tables.staging.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.db.tables.staging.schema.primary_keys)}));""")
-                logger.success(f"{cfg.db.schema_name}.{cfg.db.tables.staging} created")
+                logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
+                con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging.name} ({', '.join([f"{key} {value.type}" for key, value in cfg.db.tables.staging.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.db.tables.staging.schema.primary_keys)}));""")
+                logger.warning(f"{cfg.db.schema_name}.{cfg.db.tables.staging.name} created")
                 
             ### Use Ruff as a linter
                 
             try:
-                logger.info(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging}")
-                con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging} BY NAME SELECT * FROM insertion_table;")
-                logger.info(f"Load task ended")
+                logger.debug(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
+                con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging.name} BY NAME SELECT * FROM insertion_table;")
+                logger.success(f"Load task ended")
             except Exception as e:
                 logger.error(e)
-            
-            try:
-                con.sql("SELECT estimated_size,column_count,index_count FROM duckdb_tables();").show()
-            except Exception as e:
-                logger.error(e)
+
+            # try:
+            #     con.sql("SELECT estimated_size,column_count,index_count FROM duckdb_tables();").show()
+            # except Exception as e:
+            #     logger.error(e)
 
 # def pipeline():
 
-
 # if __name__ == "main":
 #     pipeline()
-
-# new_dv = dv3f()
-# new_dv.get_data(scope="dep", coddep=59)
-# new_dv.load_data()
-# print(new_dv)
 
 # Switch coddep&codreg into code or raise error if scope=dep and correg
             

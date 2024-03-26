@@ -6,8 +6,10 @@ db:
   db_name: dv3f
   schema_name: dev
   tables:
-      raw: test_raw
-      staging: test_staging
+      raw: 
+        name: test_raw
+      staging: 
+        name: test_staging
         schema:
           primary_keys: 
             - uid
