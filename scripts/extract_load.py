@@ -7,7 +7,7 @@ from hydra import compose, initialize
 from omegaconf import OmegaConf
 import hashlib
 
-with initialize(version_base=None, config_path="config", job_name="pipeline"):
+with initialize(version_base=None, config_path="setup", job_name="pipeline"):
     cfg = compose(config_name="hydra.yaml")
 
 logger.add(f"{cfg.log.path}/{cfg.log.name}")
