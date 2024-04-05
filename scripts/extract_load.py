@@ -97,7 +97,7 @@ class dv3f():
             raise BaseException(e)
 
         logger.success("Get task ended")
-
+        return self.data
     
     def __repr__(self):
         if 'data' in dir(self):
@@ -112,7 +112,7 @@ class dv3f():
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
     
     
-    def transform_data(self):
+    def transform_data(self, data=None):
         """
         Transforms the provided DataFrame using a series of operations including melting, pivoting, and adding a unique identifier (UID).
 
@@ -128,7 +128,12 @@ class dv3f():
         logger.info("Starting transform task")
         
         m = hashlib.sha256()
-        df = (self.data)
+        if 'data' in dir(self):
+            df = self.data
+        elif data is not None:
+            df = data
+        else:
+            raise ValueError("No data provided")
 
         # Liste des colonnes à garder inchangées
         id_vars = ['annee', 'dep', 'libdep']
@@ -157,8 +162,10 @@ class dv3f():
         df_pivoted.columns.name = None
 
         self.data = df_pivoted
+        df = df_pivoted
         logger.success("Transform task ended")
-
+        return df
+    
     def test(self):
         # print(f"{cfg.schema.columns.keys()}")
         # print(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.schema.primary_keys)}));""")
@@ -166,11 +173,18 @@ class dv3f():
 
     ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
     
-    def load_data(self):
+    def load_data(self, data=None):
         logger.info("Starting load task")
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
-            insertion_table = self.data
+
+            if 'data' in dir(self):
+                insertion_table = self.data
+            elif data is not None:
+                insertion_table = data
+            else:
+                raise ValueError("No data provided")
+
             logger.debug(f"Using {cfg.db.schema_name}.{cfg.db.tables.staging.name} to insert data")
             con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
 
