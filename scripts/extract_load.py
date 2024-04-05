@@ -6,6 +6,11 @@ import duckdb
 from hydra import compose, initialize
 from omegaconf import OmegaConf
 import hashlib
+# from dagster import Config, asset
+
+
+# class ItemsConfig(Config):
+#     base_item_id: int
 
 with initialize(version_base=None, config_path="config", job_name="pipeline"):
     cfg = compose(config_name="hydra.yaml")
@@ -93,7 +98,7 @@ class dv3f():
 
         logger.success("Get task ended")
 
-
+    
     def __repr__(self):
         if 'data' in dir(self):
            return self.data
@@ -105,6 +110,7 @@ class dv3f():
            return str(self.data.head(5))
         else:
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
+    
     
     def transform_data(self):
         """
@@ -159,6 +165,7 @@ class dv3f():
         pass
 
     ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
+    
     def load_data(self):
         logger.info("Starting load task")
 
