@@ -1,6 +1,0 @@
-{
-    "sqltools.connections": [],
-    "sqltools.useNodeRuntime": true,
-    "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "basic"
-}
