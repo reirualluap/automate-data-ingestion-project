@@ -1,4 +1,4 @@
-from dagster import asset, AssetMaterialization
+from dagster import Definitions, asset, define_asset_job, ScheduleDefinition
 # from pendulum import datetime
 import scripts.extract_load as extract_load
 
@@ -17,10 +17,11 @@ def load(transform):
     dv3f_instance.load_data(transform)
     return None
 
-# @pipeline(mode_defs=[ModeDefinition(resource_defs={})])
-# def etl_pipeline():
-#     loaded_data = load_data(transform_data(extract_data()))
+etl_job = define_asset_job(name='etl_job')
 
-# Execute the pipeline
-# if __name__ == "__main__":
-#     result = execute_pipeline(etl_pipeline, tags={"dev_test"})
+defs = Definitions(
+    assets=[extract,transform,load],
+    jobs=[etl_job]
+)
+
+basic_schedule = ScheduleDefinition(job=etl_job, cron_schedule="@monthly")
