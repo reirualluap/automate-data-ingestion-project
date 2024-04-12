@@ -14,3 +14,7 @@ ingestion-project-venv
 
 ## tempfiles
 *.wal
+
+## DB
+/data
+*.db
