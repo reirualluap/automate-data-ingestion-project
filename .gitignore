@@ -18,3 +18,9 @@ ingestion-project-venv
 ## DB
 /data
 *.db
+
+## dbt
+dbt_core/target/
+dbt_core/dbt_packages/
+dbt_core/logs/
+dbt_core/profiles.yml
