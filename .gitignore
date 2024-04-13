@@ -14,3 +14,9 @@ ingestion-project-venv
 
 ## tempfiles
 *.wal
+
+## RUFF
+.ruff_cache
+
+## DAGSTER temp
+tmp*

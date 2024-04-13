@@ -1,16 +1,10 @@
-# import logging
 import requests
 from loguru import logger
 import pandas as pd
 import duckdb
 from hydra import compose, initialize
-from omegaconf import OmegaConf
 import hashlib
-# from dagster import Config, asset
 
-
-# class ItemsConfig(Config):
-#     base_item_id: int
 
 with initialize(version_base=None, config_path="config", job_name="pipeline"):
     cfg = compose(config_name="hydra.yaml")
@@ -54,7 +48,7 @@ class dv3f():
         self.code = code
         self.api_endpoint = None
  
-        logger.info(f"Starting get task")
+        logger.info("Starting get task")
 
         if self.scope in ["region","reg"]:
             self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/regions/annuel/{self.code}/"
@@ -127,7 +121,6 @@ class dv3f():
         """
         logger.info("Starting transform task")
         
-        m = hashlib.sha256()
         df = (self.data)
 
         # Liste des colonnes à garder inchangées
@@ -159,13 +152,11 @@ class dv3f():
         self.data = df_pivoted
         logger.success("Transform task ended")
 
-    def test(self):
-        # print(f"{cfg.schema.columns.keys()}")
-        # print(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.schema.primary_keys)}));""")
+    ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
+    def contract_test(self):
+        ### TO BE DONE
         pass
 
-    ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
-    
     def load_data(self):
         logger.info("Starting load task")
 
@@ -182,27 +173,12 @@ class dv3f():
                 logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
                 con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging.name} ({', '.join([f"{key} {value.type}" for key, value in cfg.db.tables.staging.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.db.tables.staging.schema.primary_keys)}));""")
                 logger.warning(f"{cfg.db.schema_name}.{cfg.db.tables.staging.name} created")
-                
-            ### Use Ruff as a linter
-                
+                                
             try:
                 logger.debug(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
                 con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging.name} BY NAME SELECT * FROM insertion_table;")
-                logger.success(f"Load task ended")
+                logger.success("Load task ended")
             except Exception as e:
                 logger.error(e)
 
-            # try:
-            #     con.sql("SELECT estimated_size,column_count,index_count FROM duckdb_tables();").show()
-            # except Exception as e:
-            #     logger.error(e)
-
-# def pipeline():
-
-# if __name__ == "main":
-#     pipeline()
-
-# Switch coddep&codreg into code or raise error if scope=dep and correg
-            
-
-            
+## RUFF CHECK PASSED
