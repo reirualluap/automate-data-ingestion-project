@@ -166,7 +166,7 @@ class dv3f():
 
     ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
     
-    def load_data(self):
+    def load_data(self, data=None):
         logger.info("Starting load task")
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
