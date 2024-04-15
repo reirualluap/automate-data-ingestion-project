@@ -2,6 +2,13 @@ log:
   path: log 
   name: dv3f.log
 
+args:
+  scope:
+    region:
+      - 44
+    departement:
+      - 59
+
 db:
   db_name: dv3f
   schema_name: dev
