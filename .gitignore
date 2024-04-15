@@ -24,3 +24,9 @@ dbt_core/target/
 dbt_core/dbt_packages/
 dbt_core/logs/
 dbt_core/profiles.yml
+
+## RUFF
+.ruff_cache
+
+## DAGSTER temp
+tmp*
