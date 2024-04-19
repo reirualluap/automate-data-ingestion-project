@@ -20,7 +20,7 @@ class dv3f():
         output file, and format. It initializes a logger object for use within the class.
         """
     
-    def get_data(self, annee=None, scope=None,code=None, codreg=None, **kwargs):
+    def get_data(self, annee=None, scope=None,code=None, **kwargs):
         """
         Retrieves data from an API endpoint based on specified parameters.
         
@@ -47,8 +47,12 @@ class dv3f():
         self.annee = annee
         self.code = code
         self.api_endpoint = None
- 
-        logger.info("Starting get task")
+
+        ## Returns a tuple, translate into a mapping key
+        scope_code=kwargs.get("scope_code")
+        # scope_code=f"{scope_code[0]}_{scope_code[1]}"
+
+        logger.info(f"Starting get task for : {scope_code}")
 
         if self.scope in ["region","reg"]:
             self.api_endpoint = f"https://apidf-preprod.cerema.fr/indicateurs/dv3f/regions/annuel/{self.code}/"
@@ -90,9 +94,16 @@ class dv3f():
             logger.error(e)
             raise BaseException(e)
 
-        logger.success("Get task ended")
-        return self.data
-    
+        logger.success(f"Get task ended for : {scope_code}")
+        
+        if 'data' in dir(self):
+            return self.data, scope_code
+        # elif data is not None:
+        #     return scope_code
+        else:
+            raise ValueError("No data provided")
+
+
     def __repr__(self):
         if 'data' in dir(self):
            return self.data
@@ -105,8 +116,8 @@ class dv3f():
         else:
             raise ValueError("The object is empty. Cannot process empty data, please use get_data() method first.")
     
-    
-    def transform_data(self, data=None):
+    ## Check input
+    def transform_data(self, data, scope_code):
         """
         Transforms the provided DataFrame using a series of operations including melting, pivoting, and adding a unique identifier (UID).
 
@@ -119,18 +130,27 @@ class dv3f():
         This method logs the start of the transformation task, performs the transformation operations,
         and logs the completion of the task. 
         """
-        logger.info("Starting transform task")
+
+        scope, code = scope_code
+        self.data = data
+
+        logger.info(f"Starting transform task for : {scope_code}")
         
         m = hashlib.sha256()
         if 'data' in dir(self):
-            df = self.data
+            df = pd.DataFrame(self.data)
         elif data is not None:
-            df = data
+            df = pd.DataFrame(data)
         else:
             raise ValueError("No data provided")
 
         # Liste des colonnes à garder inchangées
-        id_vars = ['annee', 'dep', 'libdep']
+        if scope in ["region","reg"]:
+            id_vars = ['annee', 'reg', 'libreg']
+        elif scope in ["departement","dep"]:
+            id_vars = ['annee', 'dep', 'libdep']
+        else:
+            raise ValueError("Invalid scope value. Valid values are 'region' or 'departement'.")
 
         # Réorganiser les données en utilisant melt et extraire le suffixe
         df_melted = df.melt(id_vars=id_vars, var_name='cod_full', value_name='valeur')
@@ -143,7 +163,17 @@ class dv3f():
         df_pivoted = df_melted.pivot_table(index=id_vars + ['cod'], columns='cod_full', values='valeur', aggfunc='first').reset_index()
 
         # Ajout d'une clé de déduplication (UID)
-        df_pivoted['uid'] = df_pivoted.apply(
+        if scope in ["region","reg"]:
+            df_pivoted['uid'] = df_pivoted.apply(
+            lambda row: hashlib.sha256(
+                str(row['annee']).encode('utf-8') + 
+                str(row['reg']).encode('utf-8') + 
+                str(row['cod']).encode('utf-8')
+            ).hexdigest(), 
+            axis=1
+        )
+        elif scope in ["departement","dep"]:
+            df_pivoted['uid'] = df_pivoted.apply(
             lambda row: hashlib.sha256(
                 str(row['annee']).encode('utf-8') + 
                 str(row['dep']).encode('utf-8') + 
@@ -151,23 +181,30 @@ class dv3f():
             ).hexdigest(), 
             axis=1
         )
+        else:
+            raise ValueError("Invalid scope value. Valid values are 'region' or 'departement'.")
 
         # Renommer les colonnes si nécessaire
         df_pivoted.columns.name = None
 
-        self.data = df_pivoted
-        df = df_pivoted
-        logger.success("Transform task ended")
+        data = df_pivoted
+        logger.success(f"Transform task ended for : {scope_code}")
+        return data, scope_code
 
     def test(self):
         # print(f"{cfg.schema.columns.keys()}")
         # print(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging} ({', '.join([f"{key} {value.type}" for key, value in cfg.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.schema.primary_keys)}));""")
         pass
+ 
+    def load_data(self, data, scope_code):
+        logger.info(f"Starting load task for : {scope_code}")
+        scope, code = scope_code
 
-    ## Add an assert test to match schema, this to avoid to create/insert data that not match transformed
-    
-    def load_data(self, data=None):
-        logger.info("Starting load task")
+        for table in cfg.db.tables.staging:
+            if scope in table.name:
+                table_name = table.name
+                table_pk = table.schema.primary_keys
+                table_columns = table.schema.columns
 
         with duckdb.connect(f"data/{cfg.db.db_name}.db") as con:
 
@@ -178,22 +215,22 @@ class dv3f():
             else:
                 raise ValueError("No data provided")
 
-            logger.debug(f"Using {cfg.db.schema_name}.{cfg.db.tables.staging.name} to insert data")
+            logger.debug(f"Using {cfg.db.schema_name}.{table_name} to insert data")
             con.sql(f"CREATE SCHEMA IF NOT EXISTS {cfg.db.schema_name}")
 
             try:
-                con_obj = con.table(f"{cfg.db.schema_name}.{cfg.db.tables.staging.name}")
-                logger.info(f"Table {cfg.db.schema_name}.{cfg.db.tables.staging.name} exists")
+                con_obj = con.table(f"{cfg.db.schema_name}.{table_name}")
+                logger.info(f"Table {cfg.db.schema_name}.{table_name} exists")
             except Exception as e:
                 logger.warning(e)
-                logger.info(f"Creating new table as {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
-                con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{cfg.db.tables.staging.name} ({', '.join([f"{key} {value.type}" for key, value in cfg.db.tables.staging.schema.columns.items()])}, PRIMARY KEY ({', '.join(cfg.db.tables.staging.schema.primary_keys)}));""")
-                logger.warning(f"{cfg.db.schema_name}.{cfg.db.tables.staging.name} created")
+                logger.info(f"Creating new table as {cfg.db.schema_name}.{table_name}")
+                con.sql(f"""CREATE TABLE IF NOT EXISTS {cfg.db.schema_name}.{table_name} ({', '.join([f"{key} {value.type}" for key, value in table_columns.items()])}, PRIMARY KEY ({', '.join(table_pk)}));""")
+                logger.warning(f"{cfg.db.schema_name}.{table_name} created")
                                 
             try:
-                logger.debug(f"Inserting into {cfg.db.schema_name}.{cfg.db.tables.staging.name}")
-                con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{cfg.db.tables.staging.name} BY NAME SELECT * FROM insertion_table;")
-                logger.success("Load task ended")
+                logger.debug(f"Inserting into {cfg.db.schema_name}.{table_name}")
+                con.sql(f"INSERT OR REPLACE INTO {cfg.db.schema_name}.{table_name} BY NAME SELECT * FROM insertion_table;")
+                logger.success("Load task ended for : {scope_code}")
             except Exception as e:
                 logger.error(e)
 
