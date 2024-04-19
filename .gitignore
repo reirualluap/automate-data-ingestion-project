@@ -30,3 +30,6 @@ dbt_core/profiles.yml
 
 ## DAGSTER temp
 tmp*
+
+## TEST
+scripts/runner_test.py
