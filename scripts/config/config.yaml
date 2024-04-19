@@ -4,70 +4,123 @@ log:
 
 args:
   scope:
-    region:
-      - 44
+    region: [1,2,3,4,6,11,24,27,28,32,44,52,53,75,76,84,93,94]
     departement:
       - 59
+      - 85
+      - 69
+
 
 db:
   db_name: dv3f
   schema_name: dev
   tables:
-      raw: 
-        name: test_raw
+      # raw: 
+      #   name: test_raw
       staging: 
-        name: test_staging
-        schema:
-          primary_keys: 
-            - uid
-          columns : 
-            uid:
-              type: string
-            annee:
-              type: string
-              nullable: true
-              maxLength: 4
-            dep:
-              type: string
-              nullable: true
-            libdep:
-              type: string
-              nullable: true
-            cod: 
-              type: string
-              nullable: true
-            nbtrans:
-              type: int64
-              max: 9223372036854776000
-              min: -9223372036854776000
-              nullable: true
-            valeurfonc_sum:
-              type: double
-              nullable: true
-            valeurfonc_q25:
-              type: double
-              nullable: true
-            valeurfonc_median:
-              type: double
-              nullable: true
-            valeurfonc_q75:
-              type: double
-              nullable: true
-            pxm2_q25:
-              type: double
-              nullable: true
-            pxm2_median:
-              type: double
-              nullable: true
-            pxm2_q75:
-              type: double
-              nullable: true
-            sbati_sum:
-              type: double
-              nullable: true
-            sbati_median:
-              type: double
-              nullable: true
-
+        - name: src_departement
+          schema:
+            primary_keys: 
+              - uid
+            columns : 
+              uid:
+                type: string
+              annee:
+                type: string
+                nullable: true
+                maxLength: 4
+              dep:
+                type: string
+                nullable: true
+              libdep:
+                type: string
+                nullable: true
+              cod: 
+                type: string
+                nullable: true
+              nbtrans:
+                type: int64
+                max: 9223372036854776000
+                min: -9223372036854776000
+                nullable: true
+              valeurfonc_sum:
+                type: double
+                nullable: true
+              valeurfonc_q25:
+                type: double
+                nullable: true
+              valeurfonc_median:
+                type: double
+                nullable: true
+              valeurfonc_q75:
+                type: double
+                nullable: true
+              pxm2_q25:
+                type: double
+                nullable: true
+              pxm2_median:
+                type: double
+                nullable: true
+              pxm2_q75:
+                type: double
+                nullable: true
+              sbati_sum:
+                type: double
+                nullable: true
+              sbati_median:
+                type: double
+                nullable: true
+        - name : src_region
+          schema:
+            primary_keys: 
+              - uid
+            columns : 
+              uid:
+                type: string
+              annee:
+                type: string
+                nullable: true
+                maxLength: 4
+              reg:
+                type: string
+                nullable: true
+              libreg:
+                type: string
+                nullable: true
+              cod: 
+                type: string
+                nullable: true
+              nbtrans:
+                type: int64
+                max: 9223372036854776000
+                min: -9223372036854776000
+                nullable: true
+              valeurfonc_sum:
+                type: double
+                nullable: true
+              valeurfonc_q25:
+                type: double
+                nullable: true
+              valeurfonc_median:
+                type: double
+                nullable: true
+              valeurfonc_q75:
+                type: double
+                nullable: true
+              pxm2_q25:
+                type: double
+                nullable: true
+              pxm2_median:
+                type: double
+                nullable: true
+              pxm2_q75:
+                type: double
+                nullable: true
+              sbati_sum:
+                type: double
+                nullable: true
+              sbati_median:
+                type: double
+                nullable: true
 
 
