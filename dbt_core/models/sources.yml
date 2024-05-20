@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: dv3f # this is the source_name
+    database: dv3f
+    schema: dev
+    tables:
+      - name: src_departement # this is the table_name
+      - name: src_region
