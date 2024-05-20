@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  evidence:
+    image: evidencedev/devenv
+    container_name: evidence
+    ports:
+      - "3000:3000"
+    volumes:
+      - C:/Users/Paul/OneDrive/Bureau/engineering-learn/automate-data-ingestion-project/evidence-workspace:/evidence-workspace
+      - C:/Users/Paul/OneDrive/Bureau/engineering-learn/automate-data-ingestion-project/data:/evidence-workspace/sources/dv3f
